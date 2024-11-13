@@ -1,0 +1,21 @@
+{
+  "images" : [
+    {
+      "filename" : "another-one-thoughts-on-this-episode-v0-lmbqyd9mmkkc1 copy.jpg",
+      "idiom" : "universal",
+      "scale" : "1x"
+    },
+    {
+      "idiom" : "universal",
+      "scale" : "2x"
+    },
+    {
+      "idiom" : "universal",
+      "scale" : "3x"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
