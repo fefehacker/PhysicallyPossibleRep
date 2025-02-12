@@ -25,14 +25,13 @@ struct ActivityCardView: View {
             Text(activity.title)
                 .font(.headline)
                 .padding(.top, 10)
-            
+
             Text(activity.description)
                 .font(.subheadline)
                 .padding(.top, 5)
                 .padding(.bottom, 10)
 
-            
-             
+
         }
         .padding()
         .background(Color(.sRGB, red: 0.163, green: 0.163, blue: 0.163, opacity: 0.5))
@@ -40,4 +39,3 @@ struct ActivityCardView: View {
         .shadow(radius: 4)
     }
 }
-    
