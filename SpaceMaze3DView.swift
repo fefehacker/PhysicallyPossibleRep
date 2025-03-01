@@ -3,31 +3,29 @@ import SceneKit
 import CoreMotion
 import UIKit
 
-struct Maze3DView: View { // Conforms to View
-    let gridWidth: Int
-    let gridHeight: Int
+struct SpaceMaze3DView: View { // Renamed struct to SpaceMaze3DView
+    // MARK: - FIXED SPACE MAZE PARAMETERS
+    let gridWidth = 80
+    let gridHeight = 80
+    let ballFriction: Float = 0.02 // Example values, adjust as needed
+    let ballMass: Float = 5.0      // Heavy ball
+    let ballRollingFriction: Float = 0.01
+    let ballRestitution: Float = 0.95 // Very bouncy
+    let ballDamping: Float = 0.1
+    let ballRadius: Float = 0.45
+    let lightIntensity: Float = 500 // Adjust light intensity for space theme
+    let cameraHeight: Float = 25     // Adjust camera height for space theme
     @State private var dfsPath: [SCNVector3] = []
     @State private var regenerateMaze: Bool = false
     @State private var viewId = UUID()
-    let ballFriction: Float
-    let ballMass: Float
-    @State private var showActivityDetail = false
-    @State private var mazeCoordinator: Maze3DUIViewRepresentable.Coordinator?
-    // MARK: - REMOVED WALL SETTINGS PARAMETERS
-    // MARK: - NEW BALL PHYSICS SETTINGS PARAMETERS
-    let ballRollingFriction: Float
-    let ballRestitution: Float
-    let ballDamping: Float
-    let ballRadius: Float
-    let lightIntensity: Float
-    let cameraHeight: Float
+    @State private var mazeCoordinator: SpaceMaze3DUIViewRepresentable.SpaceMazeCoordinator? // Updated Coordinator type and name
 
     @Environment(\.presentationMode) var presentationMode
 
     var body: some View {
         NavigationView {
             ZStack {
-                Maze3DUIViewRepresentable(
+                SpaceMaze3DUIViewRepresentable( // Changed to SpaceMaze3DUIViewRepresentable
                     gridWidth: gridWidth,
                     gridHeight: gridHeight,
                     ballFriction: ballFriction,
@@ -35,7 +33,7 @@ struct Maze3DView: View { // Conforms to View
                     coordinator: $mazeCoordinator,
                     dfsPath: $dfsPath,
                     regenerateMaze: $regenerateMaze,
-                    // MARK: - Pass NEW BALL PHYSICS SETTINGS, REMOVED WALL SETTINGS
+                    // MARK: - Pass FIXED BALL PHYSICS SETTINGS, REMOVED WALL SETTINGS
                     ballRollingFriction: ballRollingFriction,
                     ballRestitution: ballRestitution,
                     ballDamping: ballDamping,
@@ -49,24 +47,13 @@ struct Maze3DView: View { // Conforms to View
                         Button(action: {
                             self.presentationMode.wrappedValue.dismiss()
                         }) {
-                            Text("Exit")
+                            Text("Exit") // Keep Exit Button, you can rename it if you like
                                 .padding()
                                 .background(Color.red)
                                 .foregroundColor(.white)
                                 .cornerRadius(10)
                         }
-                        Button(action: {
-                            if let coordinator = mazeCoordinator,
-                               let sceneView = coordinator.sceneView {
-                                coordinator.solveMaze(in: sceneView)
-                            }
-                        }) {
-                            Text("Solve")
-                                .padding()
-                                .background(Color.green)
-                                .foregroundColor(.white)
-                                .cornerRadius(10)
-                        }
+                        // MARK: - REMOVED SOLVE BUTTON
                     }
                     .padding(.bottom)
                 }
@@ -77,12 +64,12 @@ struct Maze3DView: View { // Conforms to View
     }
 }
 
-struct Maze3DUIViewRepresentable: UIViewRepresentable {
+struct SpaceMaze3DUIViewRepresentable: UIViewRepresentable { // Renamed struct to SpaceMaze3DUIViewRepresentable
     let gridWidth: Int
     let gridHeight: Int
     let ballFriction: Float
     let ballMass: Float
-    @Binding var coordinator: Coordinator?
+    @Binding var coordinator: SpaceMaze3DUIViewRepresentable.SpaceMazeCoordinator? // Updated Coordinator type and name
     @Binding var dfsPath: [SCNVector3]
     @Binding var regenerateMaze: Bool
     let ballRollingFriction: Float
@@ -91,6 +78,9 @@ struct Maze3DUIViewRepresentable: UIViewRepresentable {
     let ballRadius: Float
     let lightIntensity: Float
     let cameraHeight: Float
+
+
+    typealias Coordinator = SpaceMaze3DUIViewRepresentable.SpaceMazeCoordinator // Updated Coordinator type and name
 
     private let motionManager = CMMotionManager()
 
@@ -122,18 +112,8 @@ struct Maze3DUIViewRepresentable: UIViewRepresentable {
     func makeUIView(context: Context) -> SCNView {
         let sceneView = SCNView()
         let coordinator = context.coordinator
-        sceneView.scene = generateMazeScene(
-            width: gridWidth,
-            height: gridHeight,
+        sceneView.scene = generateMazeScene( // Modified to remove parameter arguments except coordinator and sceneView
             coordinator: coordinator,
-            ballFriction: ballFriction,
-            ballMass: ballMass,
-            ballRollingFriction: ballRollingFriction,
-            ballRestitution: ballRestitution,
-            ballDamping: ballDamping,
-            ballRadius: ballRadius,
-            lightIntensity: lightIntensity,
-            cameraHeight: cameraHeight,
             sceneView: sceneView // Pass sceneView here
         )
         sceneView.delegate = coordinator
@@ -143,49 +123,41 @@ struct Maze3DUIViewRepresentable: UIViewRepresentable {
         sceneView.autoenablesDefaultLighting = true
         sceneView.antialiasingMode = .multisampling4X
 
-        if let hdrPath = Bundle.main.path(forResource: "lebombo_4k", ofType: "exr") {
+        if let hdrPath = Bundle.main.path(forResource: "space_hdri", ofType: "exr") { // Changed to space_hdri
             sceneView.scene?.background.contents = URL(fileURLWithPath: hdrPath)
             sceneView.scene?.lightingEnvironment.contents = URL(fileURLWithPath: hdrPath)
-            sceneView.scene?.lightingEnvironment.intensity = 0.3
-            let rotation = SCNMatrix4MakeRotation(Float(120 * 3.14 / 180), 0, 1, 0)
+            sceneView.scene?.lightingEnvironment.intensity = 0.7 // Adjust intensity for space
+            let rotation = SCNMatrix4MakeRotation(Float(90 * 3.14 / 180), 0, 1, 0) // Adjust rotation if needed
             sceneView.scene?.background.contentsTransform = rotation
             sceneView.scene?.lightingEnvironment.contentsTransform = rotation
         } else {
-            print("HDRI file not found!")
+            print("Space HDRI file not found!") // Updated print message
         }
 
-        coordinator.sceneView = sceneView
+        coordinator.sceneView = sceneView // Removed optional chaining here
         return sceneView
     }
 
     func updateUIView(_ uiView: SCNView, context: Context) {
         if regenerateMaze {
-            uiView.scene = generateMazeScene(
-                width: gridWidth,
-                height: gridHeight,
+            uiView.scene = generateMazeScene( // Modified to remove parameter arguments except coordinator and sceneView
                 coordinator: context.coordinator,
-                ballFriction: ballFriction,
-                ballMass: ballMass,
-                ballRollingFriction: ballRollingFriction,
-                ballRestitution: ballRestitution,
-                ballDamping: ballDamping,
-                ballRadius: ballRadius,
-                lightIntensity: lightIntensity,
-                cameraHeight: cameraHeight,
                 sceneView: uiView // Pass sceneView here as well
             )
             regenerateMaze = false
         }
     }
 
-    func makeCoordinator() -> Coordinator {
-        let coordinator = Coordinator(self)
-        self.coordinator = coordinator
+    func makeCoordinator() -> SpaceMaze3DUIViewRepresentable.SpaceMazeCoordinator { // Updated Coordinator type and name
+        let coordinator = SpaceMaze3DUIViewRepresentable.SpaceMazeCoordinator(self) // Updated Coordinator type and name
         return coordinator
     }
 
-    private func generateMazeScene(width: Int, height: Int, coordinator: Coordinator, ballFriction: Float, ballMass: Float, ballRollingFriction: Float, ballRestitution: Float, ballDamping: Float, ballRadius: Float, lightIntensity: Float, cameraHeight: Float, sceneView: SCNView) -> SCNScene { // Added sceneView parameter
+    private func generateMazeScene(coordinator: SpaceMaze3DUIViewRepresentable.SpaceMazeCoordinator?, sceneView: SCNView) -> SCNScene { // Modified function signature, Updated Coordinator type and name, added sceneView parameter
         let scene = SCNScene()
+        // Set low gravity for space maze
+        scene.physicsWorld.gravity = SCNVector3(x: 0, y: -0.05, z: 0) // Reduced gravity
+
         let light = SCNLight()
         light.type = .omni
         light.intensity = CGFloat(lightIntensity)
@@ -198,70 +170,75 @@ struct Maze3DUIViewRepresentable: UIViewRepresentable {
         let wallWidth: CGFloat = 1.0
         let wallThickness: CGFloat = 1.0
 
-        let maze = generateMaze(width: width, height: height)
-        coordinator.maze = maze
+        let maze = generateMaze(width: self.gridWidth, height: self.gridHeight) // Using fixed gridWidth and gridHeight, using self.
+        coordinator?.maze = maze
 
         var start: (x: Int, y: Int)? = nil
         var end: (x: Int, y: Int)? = nil
-        for y in 0..<height {
-            for x in 0..<width {
+        for y in 0..<self.gridHeight { // Using fixed gridHeight, using self.
+            for x in 0..<self.gridWidth { // Using fixed gridWidth, using self.
                 if maze[y][x] == 0 {
                     if start == nil { start = (x, y) }
                     end = (x, y)
                 }
             }
         }
-        coordinator.start = start
-        coordinator.end = end
+        coordinator?.start = start
+        coordinator?.end = end
 
         if let startPoint = start {
             let startMarker = createMarkerNode(at: startPoint, color: .blue)
             scene.rootNode.addChildNode(startMarker)
-            coordinator.startMarkerNode = startMarker
+            coordinator?.startMarkerNode = startMarker
         }
 
         if let endPoint = end {
             let endMarker = createMarkerNode(at: endPoint, color: .red)
             scene.rootNode.addChildNode(endMarker)
-            coordinator.endMarkerNode = endMarker
+            coordinator?.endMarkerNode = endMarker
         }
 
-        let woodMaterial = SCNMaterial()
-        woodMaterial.diffuse.contents = UIImage(named: "WoodFloor051_2K-JPG_Color.jpg")
-        woodMaterial.normal.contents = UIImage(named: "WoodFloor051_2K-JPG_NormalGL.jpg")
-        woodMaterial.roughness.contents = UIImage(named: "WoodFloor051_2K-JPG_Roughness.jpg")
+        let metalMaterial = SCNMaterial() // Changed to metal material for space theme
+        metalMaterial.diffuse.contents = UIImage(named: "Metal009_2K_Color.jpg")
+        metalMaterial.normal.contents = UIImage(named: "Metal009_2K_Normal.jpg")
+        metalMaterial.roughness.contents = UIImage(named: "Metal009_2K_Roughness.jpg")
+        metalMaterial.metalness.contents = UIImage(named: "Metal009_2K_Metalness.jpg")
         let zoomFactor: Float = 2
-        woodMaterial.diffuse.contentsTransform = SCNMatrix4MakeScale(Float(zoomFactor), Float(zoomFactor), 1)
-        woodMaterial.diffuse.wrapS = .repeat
-        woodMaterial.diffuse.wrapT = .repeat
-        woodMaterial.normal.contentsTransform = SCNMatrix4MakeScale(Float(zoomFactor), Float(zoomFactor), 1)
-        woodMaterial.normal.wrapS = .repeat
-        woodMaterial.normal.wrapT = .repeat
-        woodMaterial.roughness.contentsTransform = SCNMatrix4MakeScale(Float(zoomFactor), Float(zoomFactor), 1)
-        woodMaterial.roughness.wrapS = .repeat
-        woodMaterial.roughness.wrapT = .repeat
+        metalMaterial.diffuse.contentsTransform = SCNMatrix4MakeScale(Float(zoomFactor), Float(zoomFactor), 1)
+        metalMaterial.diffuse.wrapS = .repeat
+        metalMaterial.diffuse.wrapT = .repeat
+        metalMaterial.normal.contentsTransform = SCNMatrix4MakeScale(Float(zoomFactor), Float(zoomFactor), 1)
+        metalMaterial.normal.wrapS = .repeat
+        metalMaterial.normal.wrapT = .repeat
+        metalMaterial.roughness.contentsTransform = SCNMatrix4MakeScale(Float(zoomFactor), Float(zoomFactor), 1)
+        metalMaterial.roughness.wrapS = .repeat
+        metalMaterial.roughness.wrapT = .repeat
+        metalMaterial.metalness.contentsTransform = SCNMatrix4MakeScale(Float(zoomFactor), Float(zoomFactor), 1)
+        metalMaterial.metalness.wrapS = .repeat
+        metalMaterial.metalness.wrapT = .repeat
 
-        let floorGeometry = SCNBox(width: CGFloat(width), height: 0.1, length: CGFloat(height), chamferRadius: 0)
+
+        let floorGeometry = SCNBox(width: CGFloat(self.gridWidth), height: 0.1, length: CGFloat(self.gridHeight), chamferRadius: 0) // Using fixed gridWidth and gridHeight from self
         floorGeometry.firstMaterial?.diffuse.contents = UIColor.white
         let floorNode = SCNNode(geometry: floorGeometry)
-        floorNode.position = SCNVector3(Float(width) / 2.0, 0, Float(height) / 2.0)
+        floorNode.position = SCNVector3(Float(self.gridWidth) / 2.0, 0, Float(self.gridHeight) / 2.0) // Using fixed gridWidth and gridHeight from self
         floorNode.physicsBody = SCNPhysicsBody(type: .static, shape: SCNPhysicsShape(geometry: floorGeometry, options: nil))
         floorNode.physicsBody?.categoryBitMask = 3
         floorNode.physicsBody?.collisionBitMask = 1
-        floorNode.geometry?.materials = [woodMaterial]
+        floorNode.geometry?.materials = [metalMaterial] // Apply metal material to floor
         scene.rootNode.addChildNode(floorNode)
 
         let ceilingNode = SCNNode()
         let ceilingGeometry = SCNBox(
-            width: CGFloat(width),
+            width: CGFloat(self.gridWidth), // Using fixed gridWidth from self
             height: 0.1,
-            length: CGFloat(height),
+            length: CGFloat(self.gridHeight), // Using fixed gridHeight from self
             chamferRadius: 0
         )
         ceilingGeometry.firstMaterial?.diffuse.contents = UIColor.clear
         ceilingNode.geometry = ceilingGeometry
         ceilingNode.position = SCNVector3(
-            Float(width) / 2.0,
+            Float(self.gridWidth) / 2.0, // Using fixed gridWidth from self
             Float(wallHeight) + 0.5,
             0
         )
@@ -270,27 +247,27 @@ struct Maze3DUIViewRepresentable: UIViewRepresentable {
         ceilingNode.physicsBody?.collisionBitMask = 1
         scene.rootNode.addChildNode(ceilingNode)
 
-        let ballRadiusSetting = CGFloat(ballRadius)
+        let ballRadiusSetting = CGFloat(self.ballRadius) // Using fixed ballRadius from self
         let ballGeometry = SCNSphere(radius: ballRadiusSetting)
         ballGeometry.firstMaterial?.diffuse.contents = UIColor.lightGray
         let ballNode = SCNNode(geometry: ballGeometry)
-        let colorTexture = UIImage(named: "Metal062C_2K-JPG_Color.jpg")
-        let ballMaterial = SCNMaterial()
-        let roughnessTexture = UIImage(named: "Metal062C_2K-JPG_Roughness.jpg")
-        let metalnessTexture = UIImage(named: "Metal062C_2K-JPG_Metalness.jpg")
-        let normalTexture = UIImage(named: "Metal062C_2K-JPG_NormalGL.jpg")
-        ballMaterial.diffuse.contents = colorTexture
-        ballMaterial.roughness.contents = roughnessTexture
-        ballMaterial.metalness.contents = metalnessTexture
-        ballMaterial.normal.contents = normalTexture
+        let ballSpaceMaterial = SCNMaterial() // Space themed ball material
+        let colorTexture = UIImage(named: "Metal048C_2K-JPG_Color.jpg")
+        let roughnessTexture = UIImage(named: "Metal048C_2K-JPG_Roughness.jpg")
+        let metalnessTexture = UIImage(named: "Metal048C_2K-JPG_Metalness.jpg")
+        let normalTexture = UIImage(named: "Metal048C_2K-JPG_NormalGL.jpg")
+        ballSpaceMaterial.diffuse.contents = colorTexture
+        ballSpaceMaterial.roughness.contents = roughnessTexture
+        ballSpaceMaterial.metalness.contents = metalnessTexture
+        ballSpaceMaterial.normal.contents = normalTexture
         ballNode.position = SCNVector3(1.0, ballRadiusSetting + 0.1, 1.0)
-        ballGeometry.firstMaterial = ballMaterial
+        ballGeometry.firstMaterial = ballSpaceMaterial
         ballNode.physicsBody = SCNPhysicsBody(type: .dynamic, shape: SCNPhysicsShape(geometry: ballGeometry, options: nil))
-        ballNode.physicsBody?.mass = CGFloat(ballMass)
-        ballNode.physicsBody?.friction = CGFloat(ballFriction)
-        ballNode.physicsBody?.rollingFriction = CGFloat(ballRollingFriction)
-        ballNode.physicsBody?.restitution = CGFloat(ballRestitution)
-        ballNode.physicsBody?.damping = CGFloat(ballDamping)
+        ballNode.physicsBody?.mass = CGFloat(self.ballMass) // Using fixed ballMass from self
+        ballNode.physicsBody?.friction = CGFloat(self.ballFriction) // Using fixed ballFriction from self
+        ballNode.physicsBody?.rollingFriction = CGFloat(self.ballRollingFriction) // Using fixed ballRollingFriction from self
+        ballNode.physicsBody?.restitution = CGFloat(self.ballRestitution) // Using fixed ballRestitution from self
+        ballNode.physicsBody?.damping = CGFloat(self.ballDamping) // Using fixed ballDamping from self
         ballNode.physicsBody?.angularDamping = 0.05
         ballNode.physicsBody?.categoryBitMask = 1
         ballNode.physicsBody?.contactTestBitMask = 2 | 4
@@ -300,56 +277,54 @@ struct Maze3DUIViewRepresentable: UIViewRepresentable {
 
         let cameraNode = SCNNode()
         cameraNode.camera = SCNCamera()
-        cameraNode.position = SCNVector3(Float(width) / 2.0, cameraHeight, Float(height))
-        cameraNode.look(at: SCNVector3(Float(width) / 2.0, 0, Float(height) / 2.0))
+        cameraNode.position = SCNVector3(Float(self.gridWidth) / 2.0, cameraHeight, Float(self.gridHeight)) // Using fixed gridWidth and gridHeight from self, cameraHeight
+        cameraNode.look(at: SCNVector3(Float(self.gridWidth) / 2.0, 0, Float(self.gridHeight) / 2.0)) // Using fixed gridWidth and gridHeight from self
         cameraNode.name = "cameraNode"
         scene.rootNode.addChildNode(cameraNode)
 
-        // MARK: - AUDIO IMPLEMENTATION START (Alternative Looping with SCNAction)
-        if let musicURL = Bundle.main.url(forResource: "backgroundMusic", withExtension: "mp3") {
+        // MARK: - SPACE THEME MUSIC
+        if let musicURL = Bundle.main.url(forResource: "space_music", withExtension: "mp3") { // Changed to space_music
             let audioSource = SCNAudioSource(url: musicURL)!
             audioSource.volume = 0.2
             audioSource.load()
 
-            // Create an SCNAction to play the audio source
-            let playAudioAction = SCNAction.playAudio(audioSource, waitForCompletion: true) // waitForCompletion: true is important for looping
-
-            // Create a repeatForever action to loop the playAudioAction
+            let playAudioAction = SCNAction.playAudio(audioSource, waitForCompletion: true)
             let loopAction = SCNAction.repeatForever(playAudioAction)
-
-            // Run the looping action on the camera node (or scene's rootNode)
             cameraNode.runAction(loopAction)
 
         } else {
-            print("Background music file not found!")
+            print("Space background music file not found!") // Updated print message
         }
         // MARK: - AUDIO IMPLEMENTATION END
 
 
-        for y in 0..<height {
-            for x in 0..<width {
+        for y in 0..<self.gridHeight { // Using fixed gridHeight, using self.
+            for x in 0..<self.gridWidth { // Using fixed gridWidth, using self.
                 if maze[y][x] == 1 {
                     let wallNode = createWallNode(width: wallWidth, height: wallHeight, thickness: wallThickness)
-                    let woodMaterial = SCNMaterial()
-                    woodMaterial.diffuse.contents = UIImage(named: "WoodFloor051_2K-JPG_Color.jpg")
-                    woodMaterial.normal.contents = UIImage(named: "WoodFloor051_2K-JPG_NormalGL.jpg")
-                    woodMaterial.roughness.contents = UIImage(named: "WoodFloor051_2K-JPG_Roughness.jpg")
-                    let zoomFactor: Float = 0.125
-                    woodMaterial.diffuse.contentsTransform = SCNMatrix4MakeScale(Float(zoomFactor), Float(zoomFactor), 1)
-                    woodMaterial.diffuse.wrapS = .repeat
-                    woodMaterial.diffuse.wrapT = .repeat
-                    woodMaterial.normal.contentsTransform = SCNMatrix4MakeScale(Float(zoomFactor), Float(zoomFactor), 1)
-                    woodMaterial.normal.wrapS = .repeat
-                    woodMaterial.normal.wrapT = .repeat
-                    woodMaterial.roughness.contentsTransform = SCNMatrix4MakeScale(Float(zoomFactor), Float(zoomFactor), 1)
-                    woodMaterial.roughness.wrapS = .repeat
-                    woodMaterial.roughness.wrapT = .repeat
-                    woodMaterial.metalness.contents = 0.2
+                    let wallSpaceMaterial = SCNMaterial() // Space themed wall material
+                    wallSpaceMaterial.diffuse.contents = UIImage(named: "Marble006_2K-JPG_Color.jpg")
+                    wallSpaceMaterial.normal.contents = UIImage(named: "Marble006_2K-JPG_NormalDX.jpg")
+                    wallSpaceMaterial.roughness.contents = UIImage(named: "Marble006_2K-JPG_Roughness.jpg")
+                    let zoomFactor: Float = 0.5 // Adjusted zoom factor for metal texture
+                    wallSpaceMaterial.diffuse.contentsTransform = SCNMatrix4MakeScale(Float(zoomFactor), Float(zoomFactor), 1)
+                    wallSpaceMaterial.diffuse.wrapS = .repeat
+                    wallSpaceMaterial.diffuse.wrapT = .repeat
+                    wallSpaceMaterial.normal.contentsTransform = SCNMatrix4MakeScale(Float(zoomFactor), Float(zoomFactor), 1)
+                    wallSpaceMaterial.normal.wrapS = .repeat
+                    wallSpaceMaterial.normal.wrapT = .repeat
+                    wallSpaceMaterial.roughness.contentsTransform = SCNMatrix4MakeScale(Float(zoomFactor), Float(zoomFactor), 1)
+                    wallSpaceMaterial.roughness.wrapS = .repeat
+                    wallSpaceMaterial.roughness.wrapT = .repeat
+                    wallSpaceMaterial.metalness.contentsTransform = SCNMatrix4MakeScale(Float(zoomFactor), Float(zoomFactor), 1)
+                    wallSpaceMaterial.metalness.wrapS = .repeat
+                    wallSpaceMaterial.metalness.wrapT = .repeat
+
                     wallNode.position = SCNVector3(Float(x) * Float(wallWidth) + Float(wallWidth) / 2.0, Float(wallHeight) / 2.0, Float(y) * Float(wallHeight) + Float(wallHeight) / 2.0)
                     wallNode.physicsBody = SCNPhysicsBody(type: .static, shape: SCNPhysicsShape(geometry: wallNode.geometry!, options: nil))
                     wallNode.physicsBody?.categoryBitMask = 2
                     wallNode.physicsBody?.contactTestBitMask = 1
-                    wallNode.geometry?.materials = [woodMaterial]
+                    wallNode.geometry?.materials = [wallSpaceMaterial] // Apply metal material to walls
                     scene.rootNode.addChildNode(wallNode)
                 }
             }
@@ -378,7 +353,7 @@ struct Maze3DUIViewRepresentable: UIViewRepresentable {
         return markerNode
     }
 
-    private func startAccelerometerUpdates(ballNode: SCNNode, coordinator: Coordinator) { // Moved outside and marked private at struct level
+    private func startAccelerometerUpdates(ballNode: SCNNode, coordinator: SpaceMaze3DUIViewRepresentable.SpaceMazeCoordinator?) { // Moved outside and marked private at struct level, Updated Coordinator type and name
         guard motionManager.isDeviceMotionAvailable else {
             print("Device motion is not available.")
             return
@@ -386,10 +361,9 @@ struct Maze3DUIViewRepresentable: UIViewRepresentable {
 
         motionManager.deviceMotionUpdateInterval = 1.0 / 60.0
         motionManager.startDeviceMotionUpdates(using: .xArbitraryCorrectedZVertical, to: .main) { [weak coordinator] (motionData, error) in
-            guard let motionData = motionData, error == nil else { return }
-            guard let coordinator = coordinator,
-                  let sceneView = coordinator.sceneView,
-                  let cameraNode = sceneView.pointOfView else { return }
+            guard let motionData = motionData, error == nil, let coordinator = coordinator, // Combined guard statements
+                  let sceneView = coordinator.sceneView else { return }
+            let cameraNode = sceneView.pointOfView! // Force unwrap cameraNode here
 
             let gravity = motionData.gravity
             let gravityVector = SCNVector3(gravity.x, gravity.y, gravity.z)
@@ -406,9 +380,8 @@ struct Maze3DUIViewRepresentable: UIViewRepresentable {
     }
 
 
-
-    class Coordinator: NSObject, SCNSceneRendererDelegate, SCNPhysicsContactDelegate, ObservableObject {
-        let parent: Maze3DUIViewRepresentable
+    class SpaceMazeCoordinator: NSObject, SCNSceneRendererDelegate, SCNPhysicsContactDelegate, ObservableObject { // Updated Coordinator class name
+        let parent: SpaceMaze3DUIViewRepresentable // Updated parent type to SpaceMaze3DUIViewRepresentable
         weak var sceneView: SCNView?
         var endMarkerNode: SCNNode?
         var startMarkerNode: SCNNode?
@@ -423,12 +396,12 @@ struct Maze3DUIViewRepresentable: UIViewRepresentable {
         var ballRollingAudioPlayer: SCNAudioPlayer? // For rolling sound
         var wallCollisionAudioSource: SCNAudioSource? // For collision sound (source, as we'll create players on demand)
         var isRollingSoundPlaying = false // Track if rolling sound is currently playing
-        
-        // MARK: - COLLISION SOUND LIMITER PROPERTIES // ADD THESE LINES
-               var lastCollisionSoundTime: TimeInterval = 0 // Track the last time a collision sound was played
-               let collisionSoundInterval: TimeInterval = 0.1 // Minimum time interval between collision sounds (adjust as needed)
 
-        init(_ parent: Maze3DUIViewRepresentable) {
+        // MARK: - COLLISION SOUND LIMITER PROPERTIES // ADD THESE LINES
+        var lastCollisionSoundTime: TimeInterval = 0 // Track the last time a collision sound was played
+        let collisionSoundInterval: TimeInterval = 0.1 // Minimum time interval between collision sounds (adjust as needed)
+
+        init(_ parent: SpaceMaze3DUIViewRepresentable) { // Updated parent type to SpaceMaze3DUIViewRepresentable
             self.parent = parent
             super.init() // Add super.init() call here
 
@@ -437,27 +410,27 @@ struct Maze3DUIViewRepresentable: UIViewRepresentable {
         }
 
         // MARK: - LOAD SOUND EFFECTS FUNCTION
-                func loadSoundEffects() {
-                    // Load rolling sound
-                    if let rollingSoundURL = Bundle.main.url(forResource: "ballRolling", withExtension: "mp3") { // Replace "ballRolling" with your file name (without extension)
-                        let audioSource = SCNAudioSource(url: rollingSoundURL)!
-                        audioSource.volume = 0.2 // Adjust volume as needed
-                        // REMOVE THIS LINE: audioSource.isLooping = true // Set rolling sound to loop
-                        audioSource.load()
-                        ballRollingAudioPlayer = SCNAudioPlayer(source: audioSource)
-                    } else {
-                        print("Rolling sound file not found!")
-                    }
+        func loadSoundEffects() {
+            // Load rolling sound
+            if let rollingSoundURL = Bundle.main.url(forResource: "ballRolling", withExtension: "mp3") { // Replace "ballRolling" with your file name (without extension)
+                let audioSource = SCNAudioSource(url: rollingSoundURL)!
+                audioSource.volume = 0.2 // Adjust volume as needed
+                // REMOVE THIS LINE: audioSource.isLooping = true // Set rolling sound to loop
+                audioSource.load()
+                ballRollingAudioPlayer = SCNAudioPlayer(source: audioSource)
+            } else {
+                print("Rolling sound file not found!")
+            }
 
-                    // Load wall collision sound source (we'll create players from this source when needed)
-                    if let collisionSoundURL = Bundle.main.url(forResource: "wallCollision", withExtension: "mp3") { // Replace "wallCollision" with your file name
-                        wallCollisionAudioSource = SCNAudioSource(url: collisionSoundURL)!
-                        wallCollisionAudioSource?.volume = 0.7 // Adjust collision volume
-                        wallCollisionAudioSource?.load()
-                    } else {
-                        print("Wall collision sound file not found!")
-                    }
-                }
+            // Load wall collision sound source (we'll create players from this source when needed)
+            if let collisionSoundURL = Bundle.main.url(forResource: "wallCollision", withExtension: "mp3") { // Replace "wallCollision" with your file name
+                wallCollisionAudioSource = SCNAudioSource(url: collisionSoundURL)!
+                wallCollisionAudioSource?.volume = 0.7 // Adjust collision volume
+                wallCollisionAudioSource?.load()
+            } else {
+                print("Wall collision sound file not found!")
+            }
+        }
 
 
         func renderer(_ renderer: SCNSceneRenderer, updateAtTime time: TimeInterval) {
@@ -491,39 +464,39 @@ struct Maze3DUIViewRepresentable: UIViewRepresentable {
         }
 
         func physicsWorld(_ world: SCNPhysicsWorld, didBegin contact: SCNPhysicsContact) {
-                    let nodeA = contact.nodeA
-                    let nodeB = contact.nodeB
+            let nodeA = contact.nodeA
+            let nodeB = contact.nodeB
 
-                    if (nodeA.physicsBody?.categoryBitMask == 1 && nodeB.physicsBody?.categoryBitMask == 2) ||
-                        (nodeB.physicsBody?.categoryBitMask == 1 && nodeA.physicsBody?.categoryBitMask == 2) {
-                        let ballBody = (nodeA.physicsBody?.categoryBitMask == 1) ? nodeA.physicsBody : nodeB.physicsBody
-                        let velocity = ballBody!.velocity
-                        let speed = sqrt(velocity.x * velocity.x + velocity.y * velocity.y + velocity.z * velocity.z)
-                        triggerHapticFeedback(strength: min(speed / 5.0, 1.0))
+            if (nodeA.physicsBody?.categoryBitMask == 1 && nodeB.physicsBody?.categoryBitMask == 2) ||
+                (nodeB.physicsBody?.categoryBitMask == 1 && nodeA.physicsBody?.categoryBitMask == 2) {
+                let ballBody = (nodeA.physicsBody?.categoryBitMask == 1) ? nodeA.physicsBody : nodeB.physicsBody
+                let velocity = ballBody!.velocity
+                let speed = sqrt(velocity.x * velocity.x + velocity.y * velocity.y + velocity.z * velocity.z)
+                triggerHapticFeedback(strength: min(speed / 5.0, 1.0))
 
-                        // MARK: - PLAY WALL COLLISION SOUND WITH LIMITER // MODIFIED SECTION
-                        let currentTime = TimeInterval(Date().timeIntervalSinceReferenceDate) // Get current time
-                        if currentTime - lastCollisionSoundTime >= collisionSoundInterval { // Check if enough time has passed
-                            if let collisionSource = wallCollisionAudioSource {
-                                let collisionPlayer = SCNAudioPlayer(source: collisionSource)
-                                nodeA.addAudioPlayer(collisionPlayer)
-                                nodeA.runAction(SCNAction.playAudio(collisionSource, waitForCompletion: false))
-                                lastCollisionSoundTime = currentTime // Update last collision sound time
-                            }
-                        }
-                    }
-
-                    if !hasWon && ((nodeA == endMarkerNode && nodeB.physicsBody?.categoryBitMask == 1) ||
-                        (nodeB == endMarkerNode && nodeA.physicsBody?.categoryBitMask == 1)) {
-                        hasWon = true
-                        DispatchQueue.main.async { [weak self] in
-                            self?.showCompletionMessage()
-                        }
+                // MARK: - PLAY WALL COLLISION SOUND WITH LIMITER // MODIFIED SECTION
+                let currentTime = TimeInterval(Date().timeIntervalSinceReferenceDate) // Get current time
+                if currentTime - lastCollisionSoundTime >= collisionSoundInterval { // Check if enough time has passed
+                    if let collisionSource = wallCollisionAudioSource {
+                        let collisionPlayer = SCNAudioPlayer(source: collisionSource)
+                        nodeA.addAudioPlayer(collisionPlayer)
+                        nodeA.runAction(SCNAction.playAudio(collisionSource, waitForCompletion: false))
+                        lastCollisionSoundTime = currentTime // Update last collision sound time
                     }
                 }
+            }
+
+            if !hasWon && ((nodeA == endMarkerNode && nodeB.physicsBody?.categoryBitMask == 1) ||
+                (nodeB == endMarkerNode && nodeA.physicsBody?.categoryBitMask == 1)) {
+                hasWon = true
+                DispatchQueue.main.async { [weak self] in
+                    self?.showCompletionMessage()
+                }
+            }
+        }
 
 
-        
+
 
         func showCompletionMessage() {
             let alert = UIAlertController(title: "Good job!", message: "You've reached the end!", preferredStyle: .alert)
@@ -536,13 +509,13 @@ struct Maze3DUIViewRepresentable: UIViewRepresentable {
 
             alert.addAction(UIAlertAction(title: "Exit to Main Menu", style: .destructive, handler: { _ in
                 if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                    let rootViewController = windowScene.windows.first?.rootViewController {
+                   let rootViewController = windowScene.windows.first?.rootViewController {
                     rootViewController.dismiss(animated: true)
                 }
             }))
 
             if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                let rootViewController = windowScene.windows.first?.rootViewController {
+               let rootViewController = windowScene.windows.first?.rootViewController {
                 var topController = rootViewController
                 while let presentedViewController = topController.presentedViewController {
                     topController = presentedViewController
@@ -573,7 +546,10 @@ struct Maze3DUIViewRepresentable: UIViewRepresentable {
 
         private func clearDFSPath() {
             print("clearDFSPath function called")
-            sceneView?.scene?.rootNode.childNodes.forEach { node in
+            guard let sceneView = self.sceneView, let scene = sceneView.scene else { // Using guard let here, removed optional chaining
+                return
+            }
+            scene.rootNode.childNodes.forEach { node in
                 if node.name == "dfsPathNode" {
                     node.removeFromParentNode()
                 }
@@ -616,7 +592,7 @@ struct Maze3DUIViewRepresentable: UIViewRepresentable {
                     let ny = current.y + dir.dy
 
                     if nx >= 0 && ny >= 0 && nx < maze[0].count && ny < maze.count &&
-                        !visited[ny][nx] && maze[ny][nx] == 0 {
+                       !visited[ny][nx] && maze[ny][nx] == 0 {
 
                         visited[ny][nx] = true
                         stack.append( (nx, ny) )

@@ -6,7 +6,7 @@ struct ActivityCardView: View {
 
     var body: some View {
         VStack {
-            if let imageName = activity.imageName {
+            if let imageName = activity.imageName { //image for the detailed view
                 Image(imageName)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -22,11 +22,11 @@ struct ActivityCardView: View {
                     )
             }
 
-            Text(activity.title)
+            Text(activity.title) //activity detail title
                 .font(.headline)
                 .padding(.top, 10)
 
-            Text(activity.description)
+            Text(activity.description) //activity detail description
                 .font(.subheadline)
                 .padding(.top, 5)
                 .padding(.bottom, 10)

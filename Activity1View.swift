@@ -3,7 +3,7 @@ import SceneKit
 
 struct Activity1View: View {
     var body: some View {
-        SceneKitView()  // Embed SceneKit scene here
+        SceneKitView()  
             .edgesIgnoringSafeArea(.all)
             .navigationTitle("Activity 1")
     }

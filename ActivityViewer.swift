@@ -5,14 +5,12 @@ struct ActivityViewer: View {
 
     var body: some View {
         VStack {
-            // Display the activity image or a placeholder
             Image(activity.imageName ?? "placeholder")
                 .resizable()
                 .scaledToFit()
-                .frame(maxWidth: .infinity, maxHeight: 300) // Adjust size as needed
+                .frame(maxWidth: .infinity, maxHeight: 300)
                 .padding()
 
-            // Display the activity title and description
             Text(activity.title)
                 .font(.title)
                 .padding(.bottom, 5)
